@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Anti-Raid/corelib_go/splashcore"
+	"github.com/Anti-Raid/corelib_go/utils"
 	"github.com/Anti-Raid/jobserver/interfaces"
 	"github.com/Anti-Raid/jobserver/types"
-	"go.std/splashcore"
-	"go.std/utils"
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"

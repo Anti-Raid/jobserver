@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Anti-Raid/corelib_go/splashcore"
+	"github.com/Anti-Raid/corelib_go/utils"
+	"github.com/Anti-Raid/corelib_go/utils/timex"
 	"github.com/Anti-Raid/jobserver/common"
 	"github.com/Anti-Raid/jobserver/interfaces"
 	jobstate "github.com/Anti-Raid/jobserver/state"
@@ -12,9 +15,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/infinitybotlist/eureka/jsonimpl"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
-	"go.std/splashcore"
-	"go.std/utils"
-	"go.std/utils/timex"
 	"go.uber.org/zap"
 )
 

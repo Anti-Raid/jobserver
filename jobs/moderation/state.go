@@ -1,6 +1,6 @@
 package moderation
 
-import "go.std/utils/syncmap"
+import "github.com/Anti-Raid/corelib_go/utils/syncmap"
 
 // concurrentModerationState is a map of guild IDs to the number of moderation-related jobs
 // they have running concurrently.

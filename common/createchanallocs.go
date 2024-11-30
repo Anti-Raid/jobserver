@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/Anti-Raid/corelib_go/utils"
 	"github.com/bwmarrin/discordgo"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
-	"go.std/utils"
 )
 
 // Given a guild and a list of channels, return the channels that are in the list, removing duplicates
