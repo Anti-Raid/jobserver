@@ -3,8 +3,10 @@ module github.com/Anti-Raid/jobserver
 go 1.23.2
 
 require (
-	github.com/Anti-Raid/corelib_go v0.0.0-20241130012716-c7557a937972
+	github.com/Anti-Raid/corelib_go v0.0.0-20241130014832-b4d2b1005bc4
+	github.com/anti-raid/shellcli v0.0.0-20240924224404-46bfe87be6b8
 	github.com/bwmarrin/discordgo v0.28.1
+	github.com/fatih/color v1.18.0
 	github.com/go-playground/validator/v10 v10.23.0
 	github.com/go-viper/mapstructure/v2 v2.2.1
 	github.com/infinitybotlist/eureka v1.11.0
@@ -41,6 +43,8 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/minio/minio-go/v7 v7.0.81 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect

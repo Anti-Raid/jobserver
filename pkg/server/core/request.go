@@ -11,7 +11,7 @@ import (
 	jobs "github.com/Anti-Raid/jobserver/jobs"
 	"github.com/Anti-Raid/jobserver/pkg/server/jobrunner"
 	"github.com/Anti-Raid/jobserver/pkg/server/rpc_messages"
-	"github.com/Anti-Raid/jobserver/state"
+	"github.com/Anti-Raid/jobserver/pkg/server/state"
 	"github.com/Anti-Raid/jobserver/types"
 	"github.com/infinitybotlist/eureka/jsonimpl"
 	"github.com/jackc/pgx/v5"

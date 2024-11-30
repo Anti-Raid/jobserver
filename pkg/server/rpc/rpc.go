@@ -7,7 +7,7 @@ import (
 
 	"github.com/Anti-Raid/jobserver/pkg/server/core"
 	"github.com/Anti-Raid/jobserver/pkg/server/rpc_messages"
-	"github.com/Anti-Raid/jobserver/state"
+	"github.com/Anti-Raid/jobserver/pkg/server/state"
 	"github.com/infinitybotlist/eureka/jsonimpl"
 )
 
