@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	jobs "github.com/Anti-Raid/jobserver"
 	"github.com/Anti-Raid/jobserver/interfaces"
+	jobs "github.com/Anti-Raid/jobserver/jobs"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

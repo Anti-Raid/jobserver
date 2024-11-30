@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	jobs "github.com/Anti-Raid/jobserver"
 	"github.com/Anti-Raid/jobserver/interfaces"
+	jobs "github.com/Anti-Raid/jobserver/jobs"
 	"github.com/Anti-Raid/jobserver/pkg/server/state"
 	jobstate "github.com/Anti-Raid/jobserver/state"
 	"github.com/bwmarrin/discordgo"

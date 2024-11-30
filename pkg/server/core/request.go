@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/Anti-Raid/corelib_go/structparser/db"
-	jobs "github.com/Anti-Raid/jobserver"
+	jobs "github.com/Anti-Raid/jobserver/jobs"
 	"github.com/Anti-Raid/jobserver/pkg/server/jobrunner"
 	"github.com/Anti-Raid/jobserver/pkg/server/rpc_messages"
 	"github.com/Anti-Raid/jobserver/state"
