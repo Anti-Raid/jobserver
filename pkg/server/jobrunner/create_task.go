@@ -12,7 +12,7 @@ import (
 // Sets up a job
 func Create(ctx context.Context, pool *pgxpool.Pool, jobImpl interfaces.JobImpl) (*string, error) {
 	name := jobImpl.Name()
-	owner := jobImpl.Owner()
+	guildId := jobImpl.GuildID()
 
 	_, ok := jobs.JobImplRegistry[jobImpl.Name()]
 
@@ -31,15 +31,9 @@ func Create(ctx context.Context, pool *pgxpool.Pool, jobImpl interfaces.JobImpl)
 	//nolint:errcheck
 	defer tx.Rollback(ctx)
 
-	ownerStr, err := jobs.FormatOwner(owner)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to format owner: %w", err)
-	}
-
-	err = tx.QueryRow(ctx, "INSERT INTO jobs (name, owner, expiry, output, fields, resumable) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+	err = tx.QueryRow(ctx, "INSERT INTO jobs (name, guild_id, expiry, output, fields, resumable) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
 		name,
-		ownerStr,
+		guildId,
 		jobImpl.Expiry(),
 		nil,
 		jobImpl.Fields(),

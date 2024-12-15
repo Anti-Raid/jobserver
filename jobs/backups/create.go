@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Anti-Raid/corelib_go/splashcore"
 	"github.com/Anti-Raid/corelib_go/utils"
 	"github.com/Anti-Raid/jobserver/common"
 	"github.com/Anti-Raid/jobserver/interfaces"
@@ -23,7 +22,7 @@ import (
 	_ "golang.org/x/image/webp"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/infinitybotlist/iblfile/go"
+	iblfile "github.com/infinitybotlist/iblfile/go"
 	"github.com/infinitybotlist/iblfile/go/encryptors/aes256"
 	"github.com/infinitybotlist/iblfile/go/encryptors/noencryption"
 	"github.com/vmihailenco/msgpack/v5"
@@ -725,27 +724,12 @@ func (t *ServerBackupCreate) Exec(
 	}, nil
 }
 
-func (t *ServerBackupCreate) CorrespondingBotCommand_Create() string {
-	return "backups create"
-}
-
-func (t *ServerBackupCreate) CorrespondingBotCommand_View() string {
-	return "backups list"
-}
-
-func (t *ServerBackupCreate) CorrespondingBotCommand_Download() string {
-	return "backups list"
-}
-
 func (t *ServerBackupCreate) Name() string {
 	return "guild_create_backup"
 }
 
-func (t *ServerBackupCreate) Owner() *types.Owner {
-	return &types.Owner{
-		ID:         t.ServerID,
-		TargetType: splashcore.TargetTypeServer,
-	}
+func (t *ServerBackupCreate) GuildID() string {
+	return t.ServerID
 }
 
 func (t *ServerBackupCreate) LocalPresets() *interfaces.PresetInfo {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Anti-Raid/corelib_go/splashcore"
 	"github.com/Anti-Raid/corelib_go/utils"
 	"github.com/Anti-Raid/corelib_go/utils/timex"
 	"github.com/Anti-Raid/jobserver/common"
@@ -296,29 +295,13 @@ func (t *MessagePrune) Exec(
 	}, nil
 }
 
-func (t *MessagePrune) CorrespondingBotCommand_Create() string {
-	return "prune_user"
-}
-
-func (t *MessagePrune) CorrespondingBotCommand_View() string {
-	return "prune_user"
-}
-
-func (t *MessagePrune) CorrespondingBotCommand_Download() string {
-	return "prune_user"
-}
-
 func (t *MessagePrune) Name() string {
 	return "message_prune"
 }
 
-func (t *MessagePrune) Owner() *types.Owner {
-	return &types.Owner{
-		ID:         t.ServerID,
-		TargetType: splashcore.TargetTypeServer,
-	}
+func (t *MessagePrune) GuildID() string {
+	return t.ServerID
 }
-
 func (t *MessagePrune) LocalPresets() *interfaces.PresetInfo {
 	return &interfaces.PresetInfo{
 		Runnable: true,

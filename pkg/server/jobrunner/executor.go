@@ -231,7 +231,7 @@ func Execute(
 
 			err = state.ObjectStorage.Save(
 				state.Context,
-				jobs.GetPathFromOutput(id, jobImpl, outp),
+				jobs.GetPathFromOutput(id),
 				outp.Filename,
 				outp.Buffer,
 				0,

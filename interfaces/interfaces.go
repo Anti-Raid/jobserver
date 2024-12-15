@@ -15,7 +15,7 @@ type JobImpl interface {
 	Name() string
 
 	// Owner returns who the job is for
-	Owner() *types.Owner
+	GuildID() string
 
 	// As jobs often deal with sensitive data such as secrets, the Fields method returns
 	// a map of fields that can be stored in the database
@@ -32,15 +32,6 @@ type JobImpl interface {
 
 	// Resumable returns whether or not the job is resumable
 	Resumable() bool
-
-	// CorrespondingBotCommand_View returns the bot command that should be checked for ACL purposes to list/view the job
-	CorrespondingBotCommand_View() string
-
-	// CorrespondingBotCommand_Create returns the bot command that should be checked for ACL purposes to create the job
-	CorrespondingBotCommand_Create() string
-
-	// CorrespondingBotCommand_Download returns the bot command that should be checked for ACL purposes to download the job
-	CorrespondingBotCommand_Download() string
 
 	// LocalPresets returns the preset options of a job
 	LocalPresets() *PresetInfo
