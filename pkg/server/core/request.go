@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Anti-Raid/corelib_go/structparser/db"
+	"github.com/Anti-Raid/corelib_go/utils"
 	jobs "github.com/Anti-Raid/jobserver/jobs"
 	"github.com/Anti-Raid/jobserver/pkg/server/jobrunner"
 	"github.com/Anti-Raid/jobserver/pkg/server/rpc_messages"
@@ -23,7 +23,7 @@ var ResumeOngoingJobTimeoutSecs = 15 * 60
 var DefaultValidationTimeout = 5 * time.Second
 
 var (
-	jobCols    = db.GetCols(types.Job{})
+	jobCols    = utils.GetCols(types.Job{})
 	jobColsStr = strings.Join(jobCols, ", ")
 )
 
