@@ -944,9 +944,16 @@ func (t *ServerBackupRestore) Exec(
 					// Get first channel
 					var channelId string
 
-					for _, fChan := range prevState.RestoredChannelsMap {
-						channelId = fChan
-						break
+					for _, channel := range tgtGuild.Channels {
+						if channel.Type == discordgo.ChannelTypeGuildText || channel.Type == discordgo.ChannelTypeGuildNews || channel.Type == discordgo.ChannelTypeGuildVoice {
+							channelId = channel.ID
+							break
+						}
+					}
+
+					if channelId == "" {
+						l.Warn("No channels to create webhook in")
+						return nil, nil, nil
 					}
 
 					// Create webhook for sending messages to any channel
@@ -957,6 +964,9 @@ func (t *ServerBackupRestore) Exec(
 							l.Warn("Failed to create webhook. Skipping message send", zap.Error(err))
 							return nil, nil, nil
 						}
+
+						l.Warn("Failed to create webhook. Skipping message send", zap.Error(err), zap.String("channel_id", channelId))
+
 						return nil, nil, fmt.Errorf("failed to create message send webhook: %w", err)
 					}
 
@@ -988,6 +998,15 @@ func (t *ServerBackupRestore) Exec(
 
 					if err != nil {
 						return nil, nil, fmt.Errorf("failed to decode progress data: %w", err)
+					}
+
+					var totalMessages int
+					if len(prevState.DoneChannels) == 0 {
+						prevState.DoneChannels = make(map[string][]string)
+					} else {
+						for _, v := range prevState.DoneChannels {
+							totalMessages += len(v)
+						}
 					}
 
 					if prevState.WebhookID != "" {
@@ -1051,6 +1070,11 @@ func (t *ServerBackupRestore) Exec(
 
 						// Now send the messages, reversing the order due to how Get Channel Messages works
 						for i := len(bm) - 1; i >= 0; i-- {
+							if totalMessages > t.Constraints.Create.TotalMaxMessages {
+								l.Warn("Hit total max messages limit, stopping", zap.Int("totalMessages", totalMessages))
+								break
+							}
+
 							// Check if the message is already sent
 							if slices.Contains(prevState.DoneChannels[restoredChannelId], bm[i].Message.ID) {
 								continue
@@ -1143,6 +1167,8 @@ func (t *ServerBackupRestore) Exec(
 							if err != nil {
 								return nil, nil, fmt.Errorf("failed to save intermediate result: %w", err)
 							}
+
+							totalMessages++
 
 							time.Sleep(time.Duration(t.Constraints.Restore.SendMessageSleep))
 

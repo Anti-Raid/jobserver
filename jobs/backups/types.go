@@ -5,7 +5,7 @@ import (
 
 	"github.com/Anti-Raid/corelib_go/utils/timex"
 	"github.com/bwmarrin/discordgo"
-	"github.com/infinitybotlist/iblfile/go"
+	iblfile "github.com/infinitybotlist/iblfile/go"
 )
 
 type BackupCreateConstraints struct {
@@ -42,7 +42,7 @@ var FreePlanBackupConstraints = &BackupConstraints{
 		TotalMaxMessages:          1000,
 		MaxAttachmentFileSize:     8_000_000,  // 8MB
 		FileSizeWarningThreshold:  50_000_000, // 50MB
-		MinPerChannel:             50,
+		MinPerChannel:             1,
 		DefaultPerChannel:         100,
 		JpegReencodeQuality:       75,
 		GuildAssetReencodeQuality: 85,
