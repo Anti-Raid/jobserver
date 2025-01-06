@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/Anti-Raid/corelib_go/utils"
-	"github.com/Anti-Raid/corelib_go/utils/timex"
 	"github.com/Anti-Raid/jobserver/common"
 	"github.com/Anti-Raid/jobserver/interfaces"
 	jobstate "github.com/Anti-Raid/jobserver/state"
@@ -943,14 +942,15 @@ func (t *ServerBackupRestore) Exec(
 					}
 
 					// Get first channel
-					var fChan string
+					var channelId string
 
-					for _, fChan = range prevState.RestoredChannelsMap {
+					for _, fChan := range prevState.RestoredChannelsMap {
+						channelId = fChan
 						break
 					}
 
 					// Create webhook for sending messages to any channel
-					webhook, err := discord.WebhookCreate(fChan, "Anti-Raid Message Restore", "", discordgo.WithContext(ctx))
+					webhook, err := discord.WebhookCreate(channelId, "Anti-Raid Message Restore", "", discordgo.WithContext(ctx))
 
 					if err != nil {
 						if t.Options.IgnoreRestoreErrors {
@@ -978,9 +978,10 @@ func (t *ServerBackupRestore) Exec(
 					l.Info("Waiting 5 seconds to avoid API issues")
 
 					var prevState struct {
-						RestoredChannelsMap map[string]string `mapstructure:"restoredChannelsMap"`
-						WebhookID           string            `mapstructure:"webhook_id"`
-						WebhookToken        string            `mapstructure:"webhook_token"`
+						RestoredChannelsMap map[string]string   `mapstructure:"restoredChannelsMap"`
+						DoneChannels        map[string][]string `mapstructure:"doneChannels"`
+						WebhookID           string              `mapstructure:"webhook_id"`
+						WebhookToken        string              `mapstructure:"webhook_token"`
 					}
 
 					err := mapstructure.Decode(progress.Data, &prevState)
@@ -1008,6 +1009,10 @@ func (t *ServerBackupRestore) Exec(
 					for backedUpChannelId, restoredChannelId := range restoredChannelsMap {
 						if _, ok := sections["messages/"+backedUpChannelId]; !ok {
 							continue
+						}
+
+						if _, ok := prevState.DoneChannels[restoredChannelId]; ok {
+							continue // Don't do done channels
 						}
 
 						l.Info("Processing backed up channel messages", zap.String("backed_up_channel_id", backedUpChannelId), zap.String("restored_channel_id", restoredChannelId))
@@ -1046,6 +1051,11 @@ func (t *ServerBackupRestore) Exec(
 
 						// Now send the messages, reversing the order due to how Get Channel Messages works
 						for i := len(bm) - 1; i >= 0; i-- {
+							// Check if the message is already sent
+							if slices.Contains(prevState.DoneChannels[restoredChannelId], bm[i].Message.ID) {
+								continue
+							}
+
 							var rm = discordgo.WebhookParams{
 								Content:         bm[i].Message.Content,
 								Username:        bm[i].Message.Author.Username,
@@ -1120,7 +1130,22 @@ func (t *ServerBackupRestore) Exec(
 								return nil, nil, fmt.Errorf("failed to send message: %w", err)
 							}
 
+							prevState.DoneChannels[restoredChannelId] = append(prevState.DoneChannels[restoredChannelId], bm[i].Message.ID)
+
+							// Save intermediare result of sending the message to allow better resumability
+							err = common.SaveIntermediateResult(progstate, progress, map[string]any{
+								"doneChannels":        prevState.DoneChannels,
+								"webhook_id":          prevState.WebhookID,
+								"webhook_token":       prevState.WebhookToken,
+								"restoredChannelsMap": restoredChannelsMap,
+							})
+
+							if err != nil {
+								return nil, nil, fmt.Errorf("failed to save intermediate result: %w", err)
+							}
+
 							time.Sleep(time.Duration(t.Constraints.Restore.SendMessageSleep))
+
 						}
 					}
 				}
@@ -1156,21 +1181,8 @@ func (t *ServerBackupRestore) LocalPresets() *interfaces.PresetInfo {
 	return &interfaces.PresetInfo{
 		Runnable: true,
 		Preset: &ServerBackupRestore{
-			ServerID: "{{.Args.ServerID}}",
-			Constraints: &BackupConstraints{
-				Restore: &BackupRestoreConstraints{
-					RoleDeleteSleep:    3 * timex.Second,
-					RoleCreateSleep:    3 * timex.Second,
-					ChannelDeleteSleep: 3 * timex.Second,
-					ChannelCreateSleep: 3 * timex.Second,
-					ChannelEditSleep:   1 * timex.Second,
-					SendMessageSleep:   3 * timex.Second,
-					HttpClientTimeout:  10 * timex.Second,
-					MaxBodySize:        100000000,
-				},
-				MaxServerBackups: 1,
-				FileType:         "backup.server",
-			},
+			ServerID:    "{{.Args.ServerID}}",
+			Constraints: FreePlanBackupConstraints,
 			Options: BackupRestoreOpts{
 				IgnoreRestoreErrors: false,
 				ProtectedChannels:   []string{},
