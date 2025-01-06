@@ -939,7 +939,7 @@ func (t *ServerBackupRestore) Exec(
 
 					// Get first restored channel
 					if len(prevState.RestoredChannelsMap) == 0 {
-						return nil, nil, fmt.Errorf("no restored channels")
+						return nil, nil, nil // No channels restored, skip step
 					}
 
 					// Get first channel
@@ -953,6 +953,10 @@ func (t *ServerBackupRestore) Exec(
 					webhook, err := discord.WebhookCreate(fChan, "Anti-Raid Message Restore", "", discordgo.WithContext(ctx))
 
 					if err != nil {
+						if t.Options.IgnoreRestoreErrors {
+							l.Warn("Failed to create webhook. Skipping message send", zap.Error(err))
+							return nil, nil, nil
+						}
 						return nil, nil, fmt.Errorf("failed to create message send webhook: %w", err)
 					}
 
@@ -987,14 +991,11 @@ func (t *ServerBackupRestore) Exec(
 
 					if prevState.WebhookID != "" {
 						defer func() {
-							_, err := discord.WebhookDeleteWithToken(prevState.WebhookID, prevState.WebhookToken, discordgo.WithContext(ctx))
-
-							if err != nil {
-								l.Error("Failed to delete webhook", zap.Error(err))
-							}
+							// Unfortunately, discordgo's impl here is broken so we can't do error handling here
+							discord.WebhookDeleteWithToken(prevState.WebhookID, prevState.WebhookToken, discordgo.WithContext(ctx))
 						}()
 					} else {
-						return nil, nil, fmt.Errorf("webhook is nil")
+						return nil, nil, nil // No webhook, skip step
 					}
 
 					restoredChannelsMap := prevState.RestoredChannelsMap
