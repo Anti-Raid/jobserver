@@ -12,7 +12,6 @@ require (
 	github.com/infinitybotlist/eureka v1.11.0
 	github.com/infinitybotlist/iblfile/go v0.0.0-20241130011811-35d7cf31ae71
 	github.com/jackc/pgx/v5 v5.7.1
-	github.com/redis/rueidis v1.0.50
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	github.com/wk8/go-ordered-map/v2 v2.1.8
 	go.uber.org/zap v1.27.0

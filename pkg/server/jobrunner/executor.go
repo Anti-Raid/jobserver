@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// PersistState persists the state to redis temporarily
+// PersistState persists the state to postgres temporarily
 func PersistState(tc *Progress, prog *jobstate.Progress) error {
 	_, err := state.Pool.Exec(
 		tc.State.Context(),

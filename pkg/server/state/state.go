@@ -17,7 +17,6 @@ import (
 	"github.com/infinitybotlist/eureka/proxy"
 	"github.com/infinitybotlist/eureka/snippets"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/rueidis"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
@@ -29,8 +28,6 @@ var (
 	BotUser              *discordgo.User
 	ObjectStorage        *objectstorage.ObjectStorage
 	CurrentOperationMode string // Current mode splashtail is operating in
-
-	Rueidis rueidis.Client
 
 	// Debug stuff
 	BuildInfo  *debug.BuildInfo
@@ -155,19 +152,6 @@ func Setup() {
 	Discord.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		Logger.Info("[DISCORD]", zap.String("note", "ready"))
 	})
-
-	// Reuidis
-	ruOptions, err := rueidis.ParseURL(Config.Meta.RedisURL)
-
-	if err != nil {
-		panic(err)
-	}
-
-	Rueidis, err = rueidis.NewClient(ruOptions)
-
-	if err != nil {
-		panic(err)
-	}
 
 	Transport.RegisterProtocol("job", RT{next: Transport})
 }
