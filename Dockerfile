@@ -28,4 +28,4 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 EXPOSE 30000
 
 # Run
-CMD [ "/jobserver" ]
+CMD [ "/jobserver", "jobs" ]
