@@ -2,6 +2,7 @@ package utils
 
 import "reflect"
 
+// Standard copy-pastable function
 func GetCols(s any) []string {
 	refType := reflect.TypeOf(s)
 
