@@ -558,12 +558,12 @@ func (t *ServerBackupRestore) Exec(
 				// This sort is not guaranteed to be stable. cmp(a, b) should return a negative number when a < b,
 				// a positive number when a > b and zero when a == b
 				// or a and b are incomparable in the sense of a strict weak ordering.
-				// Sort in ascending order
+				// Sort in descending order
 				slices.SortFunc(srcGuild.Roles, func(a, b *discordgo.Role) int {
 					if isRoleLessThanRole(a, b) {
-						return -1
-					} else {
 						return 1
+					} else {
+						return -1
 					}
 				})
 
