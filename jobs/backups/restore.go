@@ -108,7 +108,7 @@ func convertToDataUri(mimeType string, data []byte) string {
 
 func isRoleLessThanRole(a, b *discordgo.Role) bool {
 	if a.Position == b.Position {
-		return a.ID < b.ID
+		return a.ID > b.ID // Newer roles are less than older roles
 	}
 
 	return a.Position < b.Position
