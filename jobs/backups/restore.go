@@ -105,6 +105,14 @@ func convertToDataUri(mimeType string, data []byte) string {
 	return fmt.Sprintf("data:%s;base64,%s", mimeType, b64enc)
 }
 
+func isRoleLessThanRole(a, b *discordgo.Role) bool {
+	if a.Position == b.Position {
+		return a.ID < b.ID
+	}
+
+	return a.Position < b.Position
+}
+
 // A job to restore a backup of a server
 type ServerBackupRestore struct {
 	// The ID of the server
@@ -544,35 +552,25 @@ func (t *ServerBackupRestore) Exec(
 					restoredRolesMap = make(map[string]string)
 				}
 
-				// Sort in descending order
+				// SortFunc sorts the slice x in ascending order as determined by the cmp function.
+				//
+				// This sort is not guaranteed to be stable. cmp(a, b) should return a negative number when a < b,
+				// a positive number when a > b and zero when a == b
+				// or a and b are incomparable in the sense of a strict weak ordering.
+				// Sort in ascending order
 				slices.SortFunc(srcGuild.Roles, func(a, b *discordgo.Role) int {
-					if a.Position == b.Position {
-						if a.ID == b.ID {
-							return 0
-						} else {
-							if a.ID > b.ID {
-								return -1
-							} else {
-								return 1
-							}
-						}
-					}
-
-					if a.Position > b.Position {
+					if isRoleLessThanRole(a, b) {
 						return -1
 					} else {
 						return 1
 					}
 				})
 
+				// First create the roles, we'll modify their permissions later (discord doesn't guarantee the order of role creation)
 				for i := range srcGuild.Roles {
 					// Already done
 					if _, ok := restoredRolesMap[srcGuild.Roles[i].ID]; ok {
 						continue
-					}
-
-					if tgtBotGuildHighestRole.Position > 1 && srcGuild.Roles[i].Position >= tgtBotGuildHighestRole.Position {
-						srcGuild.Roles[i].Position = srcGuild.Roles[i].Position - tgtBotGuildHighestRole.Position
 					}
 
 					if slices.Contains(t.Options.ProtectedRoles, srcGuild.Roles[i].ID) {
@@ -587,7 +585,7 @@ func (t *ServerBackupRestore) Exec(
 						continue // @everyone
 					}
 
-					l.Info("Creating role", zap.String("name", srcGuild.Roles[i].Name), zap.Int("position", srcGuild.Roles[i].Position), zap.String("id", srcGuild.Roles[i].ID))
+					l.Info("Creating role", zap.String("name", srcGuild.Roles[i].Name), zap.Int("finalPosition", srcGuild.Roles[i].Position), zap.String("id", srcGuild.Roles[i].ID))
 
 					newRole, err := discord.GuildRoleCreate(t.ServerID, &discordgo.RoleParams{
 						Name: srcGuild.Roles[i].Name,
@@ -609,7 +607,21 @@ func (t *ServerBackupRestore) Exec(
 
 					restoredRolesMap[srcGuild.Roles[i].ID] = newRole.ID
 
-					// Save intermediare result of making the new role to allow better resumability
+					// Edit role position if not accurate
+					if srcGuild.Roles[i].Position != newRole.Position {
+						l.Info("Editing role position due to inaccuracy", zap.String("name", srcGuild.Roles[i].Name), zap.Int("position", newRole.Position), zap.String("id", newRole.ID))
+
+						_, err = discord.RequestWithBucketID("PATCH", discordgo.EndpointGuildRoles(t.ServerID), map[string]any{
+							"id":       newRole.ID,
+							"position": srcGuild.Roles[i].Position,
+						}, discordgo.EndpointGuildRoles(t.ServerID), discordgo.WithRetryOnRatelimit(true), discordgo.WithContext(ctx))
+
+						if err != nil {
+							return nil, nil, fmt.Errorf("failed to edit role position: %w", err)
+						}
+					}
+
+					// Save intermediate result of making the new role to allow better resumability
 					err = common.SaveIntermediateResult(progstate, progress, map[string]any{
 						"restoredRoleMap": restoredRolesMap,
 					})
@@ -620,6 +632,43 @@ func (t *ServerBackupRestore) Exec(
 
 					time.Sleep(time.Duration(t.Constraints.Restore.RoleCreateSleep))
 				}
+
+				/*
+					l.Info("Reorganizing roles...")
+
+					type RolePosition struct {
+						ID       string `json:"id"`
+						Position *int    `json:"position,omitempty"`
+					}
+
+					var newRolePositions []*RolePosition
+					var donePositions map[int]bool
+					for i, role := range srcGuild.Roles {
+						if slices.Contains(t.Options.ProtectedRoles, srcGuild.Roles[i].ID) {
+							continue
+						}
+
+						if srcGuild.Roles[i].Managed {
+							continue
+						}
+
+						if srcGuild.Roles[i].ID == srcGuild.ID {
+							continue // @everyone
+						}
+
+						if restoredRoleId, ok := restoredRolesMap[role.ID]; ok {
+							newRolePositions = append(newRolePositions, &RolePosition{
+								ID:       restoredRoleId,
+								Position: i,
+							})
+						}
+					}
+
+					_, err = discord.RequestWithBucketID("PATCH", discordgo.EndpointGuildRoles(t.ServerID), newRolePositions, discordgo.EndpointGuildRoles(t.ServerID), discordgo.WithRetryOnRatelimit(true), discordgo.WithContext(ctx))
+
+					if err != nil {
+						return nil, nil, fmt.Errorf("failed to edit role positions: %w", err)
+					}*/
 
 				return nil, &jobstate.Progress{
 					Data: map[string]any{
