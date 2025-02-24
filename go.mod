@@ -3,7 +3,7 @@ module github.com/Anti-Raid/jobserver
 go 1.23.2
 
 require (
-	github.com/Anti-Raid/corelib_go v0.0.0-20250223221449-c5ae9c326f9f
+	github.com/Anti-Raid/corelib_go v0.0.0-20250224023901-aa4af4f2c549
 	github.com/anti-raid/shellcli v0.0.0-20240924224404-46bfe87be6b8
 	github.com/bwmarrin/discordgo v0.28.1
 	github.com/fatih/color v1.18.0
