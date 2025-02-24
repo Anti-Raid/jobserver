@@ -18,6 +18,7 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/infinitybotlist/eureka/jsonimpl"
 	iblfile "github.com/infinitybotlist/iblfile/go"
 	"github.com/infinitybotlist/iblfile/go/encryptors/aes256"
 	"github.com/infinitybotlist/iblfile/go/encryptors/noencryption"
@@ -607,20 +608,6 @@ func (t *ServerBackupRestore) Exec(
 
 					restoredRolesMap[srcGuild.Roles[i].ID] = newRole.ID
 
-					// Edit role position if not accurate
-					if srcGuild.Roles[i].Position != newRole.Position {
-						l.Info("Editing role position due to inaccuracy", zap.String("name", srcGuild.Roles[i].Name), zap.Int("position", newRole.Position), zap.String("id", newRole.ID))
-
-						_, err = discord.RequestWithBucketID("PATCH", discordgo.EndpointGuildRoles(t.ServerID), map[string]any{
-							"id":       newRole.ID,
-							"position": srcGuild.Roles[i].Position,
-						}, discordgo.EndpointGuildRoles(t.ServerID), discordgo.WithRetryOnRatelimit(true), discordgo.WithContext(ctx))
-
-						if err != nil {
-							return nil, nil, fmt.Errorf("failed to edit role position: %w", err)
-						}
-					}
-
 					// Save intermediate result of making the new role to allow better resumability
 					err = common.SaveIntermediateResult(progstate, progress, map[string]any{
 						"restoredRoleMap": restoredRolesMap,
@@ -633,42 +620,56 @@ func (t *ServerBackupRestore) Exec(
 					time.Sleep(time.Duration(t.Constraints.Restore.RoleCreateSleep))
 				}
 
-				/*
-					l.Info("Reorganizing roles...")
+				l.Info("Reorganizing roles...")
 
-					type RolePosition struct {
-						ID       string `json:"id"`
-						Position *int    `json:"position,omitempty"`
+				type RolePosition struct {
+					ID       string `json:"id"`
+					Position int    `json:"position"`
+				}
+
+				var newRolePositions []*RolePosition
+				pos := 1
+				for i := range srcGuild.Roles {
+					i = len(srcGuild.Roles) - 1 - i // Reverse order
+					if slices.Contains(t.Options.ProtectedRoles, srcGuild.Roles[i].ID) {
+						continue
 					}
 
-					var newRolePositions []*RolePosition
-					var donePositions map[int]bool
-					for i, role := range srcGuild.Roles {
-						if slices.Contains(t.Options.ProtectedRoles, srcGuild.Roles[i].ID) {
-							continue
-						}
-
-						if srcGuild.Roles[i].Managed {
-							continue
-						}
-
-						if srcGuild.Roles[i].ID == srcGuild.ID {
-							continue // @everyone
-						}
-
-						if restoredRoleId, ok := restoredRolesMap[role.ID]; ok {
-							newRolePositions = append(newRolePositions, &RolePosition{
-								ID:       restoredRoleId,
-								Position: i,
-							})
-						}
+					if srcGuild.Roles[i].Managed {
+						continue
 					}
 
-					_, err = discord.RequestWithBucketID("PATCH", discordgo.EndpointGuildRoles(t.ServerID), newRolePositions, discordgo.EndpointGuildRoles(t.ServerID), discordgo.WithRetryOnRatelimit(true), discordgo.WithContext(ctx))
+					if srcGuild.Roles[i].ID == srcGuild.ID {
+						continue // @everyone
+					}
 
-					if err != nil {
-						return nil, nil, fmt.Errorf("failed to edit role positions: %w", err)
-					}*/
+					if restoredRoleId, ok := restoredRolesMap[srcGuild.Roles[i].ID]; ok {
+						newRolePositions = append(newRolePositions, &RolePosition{
+							ID:       restoredRoleId,
+							Position: pos,
+						})
+					}
+
+					pos++
+				}
+
+				newRolePositionsBytes, err := jsonimpl.Marshal(newRolePositions)
+
+				if err != nil {
+					if t.Options.IgnoreRestoreErrors {
+						l.Warn("Failed to marshal role positions, ignoring", zap.Error(err))
+					} else {
+						return nil, nil, fmt.Errorf("failed to marshal role positions: %w", err)
+					}
+				}
+
+				l.Info("Editing role positions", zap.String("json", string(newRolePositionsBytes)))
+
+				_, err = discord.RequestWithBucketID("PATCH", discordgo.EndpointGuildRoles(t.ServerID), newRolePositions, discordgo.EndpointGuildRoles(t.ServerID), discordgo.WithRetryOnRatelimit(true), discordgo.WithContext(ctx))
+
+				if err != nil {
+					return nil, nil, fmt.Errorf("failed to edit role positions: %w", err)
+				}
 
 				return nil, &jobstate.Progress{
 					Data: map[string]any{
