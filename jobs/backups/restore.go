@@ -18,7 +18,6 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/infinitybotlist/eureka/jsonimpl"
 	iblfile "github.com/infinitybotlist/iblfile/go"
 	"github.com/infinitybotlist/iblfile/go/encryptors/aes256"
 	"github.com/infinitybotlist/iblfile/go/encryptors/noencryption"
@@ -618,57 +617,6 @@ func (t *ServerBackupRestore) Exec(
 					}
 
 					time.Sleep(time.Duration(t.Constraints.Restore.RoleCreateSleep))
-				}
-
-				l.Info("Reorganizing roles...")
-
-				type RolePosition struct {
-					ID       string `json:"id"`
-					Position int    `json:"position"`
-				}
-
-				var newRolePositions []*RolePosition
-				pos := 1
-				for i := range srcGuild.Roles {
-					i = len(srcGuild.Roles) - 1 - i // Reverse order
-					if slices.Contains(t.Options.ProtectedRoles, srcGuild.Roles[i].ID) {
-						continue
-					}
-
-					if srcGuild.Roles[i].Managed {
-						continue
-					}
-
-					if srcGuild.Roles[i].ID == srcGuild.ID {
-						continue // @everyone
-					}
-
-					if restoredRoleId, ok := restoredRolesMap[srcGuild.Roles[i].ID]; ok {
-						newRolePositions = append(newRolePositions, &RolePosition{
-							ID:       restoredRoleId,
-							Position: pos,
-						})
-					}
-
-					pos++
-				}
-
-				newRolePositionsBytes, err := jsonimpl.Marshal(newRolePositions)
-
-				if err != nil {
-					if t.Options.IgnoreRestoreErrors {
-						l.Warn("Failed to marshal role positions, ignoring", zap.Error(err))
-					} else {
-						return nil, nil, fmt.Errorf("failed to marshal role positions: %w", err)
-					}
-				}
-
-				l.Info("Editing role positions", zap.String("json", string(newRolePositionsBytes)))
-
-				_, err = discord.RequestWithBucketID("PATCH", discordgo.EndpointGuildRoles(t.ServerID), newRolePositions, discordgo.EndpointGuildRoles(t.ServerID), discordgo.WithRetryOnRatelimit(true), discordgo.WithContext(ctx))
-
-				if err != nil {
-					return nil, nil, fmt.Errorf("failed to edit role positions: %w", err)
 				}
 
 				return nil, &jobstate.Progress{
