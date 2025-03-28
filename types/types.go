@@ -43,5 +43,6 @@ type JobListResponse struct {
 // Output is the output of a job
 type Output struct {
 	Filename string        `json:"filename"`
+	Perguild bool          `json:"perguild"`
 	Buffer   *bytes.Buffer `json:"-"`
 }

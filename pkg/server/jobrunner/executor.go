@@ -228,6 +228,8 @@ func Execute(
 			outp.Filename = "unnamed." + crypto.RandString(16)
 		}
 
+		outp.Perguild = true // All jobs are per guild
+
 		if outp.Buffer == nil {
 			l.Error("Job output buffer is nil")
 			currState = "failed"

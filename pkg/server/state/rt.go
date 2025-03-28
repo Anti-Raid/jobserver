@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -25,6 +26,8 @@ func (t RoundtripJobDl) RoundTrip(req *http.Request) (resp *http.Response, err e
 	// Create presigned url
 	expiry := req.URL.Query().Get("exp")
 
+	fmt.Println(req.URL.Path)
+
 	var expiryDuration time.Duration
 
 	if expiry != "" {
@@ -43,6 +46,7 @@ func (t RoundtripJobDl) RoundTrip(req *http.Request) (resp *http.Response, err e
 		req.URL.Path,
 		"",
 		expiryDuration,
+		true,
 	)
 
 	if err != nil {
@@ -51,6 +55,8 @@ func (t RoundtripJobDl) RoundTrip(req *http.Request) (resp *http.Response, err e
 
 	req.URL = url
 	req.Host = url.Host
+
+	fmt.Println("New URL: ", req.URL.String())
 
 	return t.next.RoundTrip(req)
 }
