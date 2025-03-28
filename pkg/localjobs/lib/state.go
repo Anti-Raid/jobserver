@@ -5,13 +5,14 @@ import (
 	"net/http"
 	"runtime/debug"
 
+	state "github.com/Anti-Raid/jobserver/pkg/server/state"
 	jobstate "github.com/Anti-Raid/jobserver/state"
 	"github.com/bwmarrin/discordgo"
 )
 
 // Implementor of jobstate.State
 type State struct {
-	HttpTransport *http.Transport
+	GuildId       string
 	DiscordSess   *discordgo.Session
 	BotUser       *discordgo.User
 	DebugInfoData *debug.BuildInfo
@@ -19,7 +20,10 @@ type State struct {
 }
 
 func (ts State) Transport() *http.Transport {
-	return ts.HttpTransport
+	transport := &http.Transport{}
+	transport.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
+	transport.RegisterProtocol("job", state.NewRoundtripJobDl(ts.GuildId, transport))
+	return transport
 }
 
 func (State) OperationMode() string {

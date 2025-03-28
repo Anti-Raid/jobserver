@@ -69,8 +69,9 @@ func Spawn(spawn rpc_messages.Spawn) (*rpc_messages.SpawnResponse, error) {
 	// Validate
 	ctx, cancel := context.WithTimeout(state.Context, DefaultValidationTimeout)
 	defer cancel()
-	err = job.Validate(jobrunner.State{
-		Ctx: ctx,
+	err = job.Validate(jobrunner.JobrunnerState{
+		GuildId: job.GuildID(),
+		Ctx:     ctx,
 	})
 
 	if err != nil {
@@ -201,8 +202,9 @@ func Resume() {
 		// Validate
 		ctx, cancel := context.WithTimeout(state.Context, DefaultValidationTimeout)
 
-		err = job.Validate(jobrunner.State{
-			Ctx: ctx,
+		err = job.Validate(jobrunner.JobrunnerState{
+			GuildId: job.GuildID(),
+			Ctx:     ctx,
 		})
 
 		cancel()

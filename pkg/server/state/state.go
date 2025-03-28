@@ -33,9 +33,6 @@ var (
 	BuildInfo  *debug.BuildInfo
 	ExtraDebug ExtraDebugInfo
 
-	// Task stuff
-	Transport *http.Transport = &http.Transport{}
-
 	Pool    *pgxpool.Pool
 	Discord *discordgo.Session
 	Logger  *zap.Logger
@@ -152,6 +149,4 @@ func Setup() {
 	Discord.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		Logger.Info("[DISCORD]", zap.String("note", "ready"))
 	})
-
-	Transport.RegisterProtocol("job", RT{next: Transport})
 }

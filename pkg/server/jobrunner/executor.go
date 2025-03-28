@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
+	"github.com/Anti-Raid/corelib_go/objectstorage"
 	"github.com/Anti-Raid/jobserver/interfaces"
 	jobs "github.com/Anti-Raid/jobserver/jobs"
 	"github.com/Anti-Raid/jobserver/pkg/server/state"
@@ -52,34 +53,37 @@ func GetPersistedState(tc *Progress) (*jobstate.Progress, error) {
 }
 
 // Implementor of jobs.State
-type State struct {
-	Ctx context.Context
+type JobrunnerState struct {
+	Ctx     context.Context
+	GuildId string
 }
 
-func (State) Transport() *http.Transport {
-	return state.Transport
+func (j JobrunnerState) Transport() *http.Transport {
+	transport := &http.Transport{}
+	transport.RegisterProtocol("job", state.NewRoundtripJobDl(j.GuildId, transport))
+	return transport
 }
 
-func (State) OperationMode() string {
+func (JobrunnerState) OperationMode() string {
 	return state.CurrentOperationMode
 }
 
-func (State) Discord() (*discordgo.Session, *discordgo.User, bool) {
+func (JobrunnerState) Discord() (*discordgo.Session, *discordgo.User, bool) {
 	return state.Discord, state.BotUser, false
 }
 
-func (State) DebugInfo() *debug.BuildInfo {
+func (JobrunnerState) DebugInfo() *debug.BuildInfo {
 	return state.BuildInfo
 }
 
-func (t State) Context() context.Context {
+func (t JobrunnerState) Context() context.Context {
 	return t.Ctx
 }
 
 type Progress struct {
 	ID string
 
-	State State
+	State JobrunnerState
 
 	// Used to cache the current progress in resumes
 	//
@@ -198,8 +202,9 @@ func Execute(
 		return
 	}
 
-	ts := State{
-		Ctx: ctx,
+	ts := JobrunnerState{
+		Ctx:     ctx,
+		GuildId: jobImpl.GuildID(),
 	}
 	if prog == nil {
 		prog = &Progress{
@@ -231,6 +236,7 @@ func Execute(
 
 			err = state.ObjectStorage.Save(
 				state.Context,
+				objectstorage.GuildBucket(jobImpl.GuildID()),
 				jobs.GetPathFromOutput(id),
 				outp.Filename,
 				outp.Buffer,

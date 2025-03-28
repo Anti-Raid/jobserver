@@ -7,7 +7,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 	"runtime/debug"
 	"slices"
@@ -275,14 +274,13 @@ func StartLocalJobs() {
 		ctx, cancelFunc = context.WithCancel(context.Background())
 	}
 
-	// Setup state
-	state := lib.State{
-		HttpTransport: func() *http.Transport {
-			transport := http.Transport{}
-			transport.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
+	if len(os.Args) == 0 {
+		fmt.Println("ERROR: No command specified!")
+		os.Exit(1)
+	}
 
-			return &transport
-		}(),
+	state := lib.State{
+		GuildId:     "localjobs",
 		DiscordSess: discordSess,
 		BotUser:     botUser,
 		DebugInfoData: func() *debug.BuildInfo {
@@ -295,11 +293,6 @@ func StartLocalJobs() {
 			return bi
 		}(),
 		ContextUse: ctx,
-	}
-
-	if len(os.Args) == 0 {
-		fmt.Println("ERROR: No command specified!")
-		os.Exit(1)
 	}
 
 	cmds := cmd.CommandLineState{

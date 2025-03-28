@@ -1,18 +1,27 @@
 package state
 
 import (
-	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/Anti-Raid/corelib_go/objectstorage"
 )
 
 var rtDefaultExp = 5 * time.Minute
 
-type RT struct {
-	next http.RoundTripper
+type RoundtripJobDl struct {
+	guildId string
+	next    http.RoundTripper
 }
 
-func (t RT) RoundTrip(req *http.Request) (resp *http.Response, err error) {
+func NewRoundtripJobDl(guildId string, next http.RoundTripper) *RoundtripJobDl {
+	return &RoundtripJobDl{
+		guildId: guildId,
+		next:    next,
+	}
+}
+
+func (t RoundtripJobDl) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	// Create presigned url
 	expiry := req.URL.Query().Get("exp")
 
@@ -28,9 +37,13 @@ func (t RT) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 		expiryDuration = rtDefaultExp
 	}
 
-	fmt.Println(req.URL.Path)
-
-	url, err := ObjectStorage.GetUrl(req.Context(), req.URL.Path, "", expiryDuration)
+	url, err := ObjectStorage.GetUrl(
+		req.Context(),
+		objectstorage.GuildBucket(t.guildId),
+		req.URL.Path,
+		"",
+		expiryDuration,
+	)
 
 	if err != nil {
 		return nil, err
