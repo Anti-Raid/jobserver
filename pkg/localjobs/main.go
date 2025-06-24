@@ -20,10 +20,10 @@ import (
 	"github.com/Anti-Raid/jobserver/pkg/localjobs/easyconfig"
 	"github.com/Anti-Raid/jobserver/pkg/localjobs/lib"
 	"github.com/Anti-Raid/jobserver/pkg/localjobs/ljstate"
+	"github.com/anti-raid/eureka/crypto"
+	"github.com/anti-raid/eureka/snippets"
 	"github.com/anti-raid/shellcli/cmd"
 	"github.com/bwmarrin/discordgo"
-	"github.com/infinitybotlist/eureka/crypto"
-	"github.com/infinitybotlist/eureka/snippets"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"gopkg.in/yaml.v3"
 )

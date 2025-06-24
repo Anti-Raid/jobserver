@@ -1,6 +1,6 @@
 package lib
 
-// From https://github.com/InfinityBotList/Popplio/blob/main/cmd/kitehelper/common/userinput.go
+// From https://github.com/anti-raid/Popplio/blob/main/cmd/kitehelper/common/userinput.go
 
 import (
 	"fmt"

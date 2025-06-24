@@ -8,7 +8,7 @@ import (
 	jobs "github.com/Anti-Raid/jobserver/jobs"
 	jobstate "github.com/Anti-Raid/jobserver/state"
 
-	"github.com/infinitybotlist/eureka/crypto"
+	"github.com/anti-raid/eureka/crypto"
 	"go.uber.org/zap"
 )
 

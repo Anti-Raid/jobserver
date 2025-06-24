@@ -13,7 +13,7 @@ import (
 	"github.com/Anti-Raid/jobserver/pkg/server/state"
 	"github.com/Anti-Raid/jobserver/types"
 	"github.com/Anti-Raid/jobserver/utils"
-	"github.com/infinitybotlist/eureka/jsonimpl"
+	"github.com/anti-raid/eureka/jsonimpl"
 	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )

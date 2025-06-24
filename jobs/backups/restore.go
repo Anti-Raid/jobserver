@@ -17,10 +17,10 @@ import (
 	"github.com/Anti-Raid/jobserver/types"
 	"github.com/go-viper/mapstructure/v2"
 
+	iblfile "github.com/anti-raid/iblfile/go"
+	"github.com/anti-raid/iblfile/go/encryptors/aes256"
+	"github.com/anti-raid/iblfile/go/encryptors/noencryption"
 	"github.com/bwmarrin/discordgo"
-	iblfile "github.com/infinitybotlist/iblfile/go"
-	"github.com/infinitybotlist/iblfile/go/encryptors/aes256"
-	"github.com/infinitybotlist/iblfile/go/encryptors/noencryption"
 	"github.com/vmihailenco/msgpack/v5"
 	"go.uber.org/zap"
 )

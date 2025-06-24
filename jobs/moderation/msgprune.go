@@ -11,8 +11,8 @@ import (
 	"github.com/Anti-Raid/jobserver/interfaces"
 	jobstate "github.com/Anti-Raid/jobserver/state"
 	"github.com/Anti-Raid/jobserver/types"
+	"github.com/anti-raid/eureka/jsonimpl"
 	"github.com/bwmarrin/discordgo"
-	"github.com/infinitybotlist/eureka/jsonimpl"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"go.uber.org/zap"
 )
