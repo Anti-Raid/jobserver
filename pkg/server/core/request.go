@@ -42,6 +42,10 @@ func Spawn(spawn rpc_messages.Spawn) (*rpc_messages.SpawnResponse, error) {
 		return nil, fmt.Errorf("invalid job name provided")
 	}
 
+	if spawn.GuildID == "" {
+		return nil, fmt.Errorf("invalid guild id provided")
+	}
+
 	baseJobImpl, ok := jobs.JobImplRegistry[spawn.Name]
 
 	if !ok {
@@ -70,7 +74,7 @@ func Spawn(spawn rpc_messages.Spawn) (*rpc_messages.SpawnResponse, error) {
 	ctx, cancel := context.WithTimeout(state.Context, DefaultValidationTimeout)
 	defer cancel()
 	err = job.Validate(jobrunner.JobrunnerState{
-		GuildId: job.GuildID(),
+		GuildId: spawn.GuildID,
 		Ctx:     ctx,
 	})
 
@@ -81,7 +85,7 @@ func Spawn(spawn rpc_messages.Spawn) (*rpc_messages.SpawnResponse, error) {
 	// Create
 	var id string
 	if spawn.Create {
-		tid, err := jobrunner.Create(state.Context, state.Pool, job)
+		tid, err := jobrunner.Create(state.Context, state.Pool, job, spawn.GuildID)
 
 		if err != nil {
 			return nil, fmt.Errorf("error creating job: %w", err)
@@ -99,7 +103,7 @@ func Spawn(spawn rpc_messages.Spawn) (*rpc_messages.SpawnResponse, error) {
 	// Execute
 	if spawn.Execute {
 		ctx, cancel := context.WithTimeout(state.Context, DefaultTimeout)
-		go jobrunner.Execute(ctx, cancel, id, job, nil)
+		go jobrunner.Execute(ctx, cancel, id, job, nil, spawn.GuildID)
 	}
 
 	return &rpc_messages.SpawnResponse{
@@ -119,12 +123,7 @@ func Resume() {
 
 	state.Logger.Info("Looking for jobs to resume")
 
-	var id string
-	var data map[string]any
-	var initialOpts map[string]any
-	var createdAt time.Time
-
-	rows, err := state.Pool.Query(state.Context, "SELECT id, data, initial_opts, created_at FROM ongoing_jobs")
+	rows, err := state.Pool.Query(state.Context, "SELECT id, data, initial_opts, guild_id, created_at FROM ongoing_jobs")
 
 	if err != nil {
 		state.Logger.Error("Failed to query ongoing_jobs", zap.Error(err))
@@ -134,7 +133,13 @@ func Resume() {
 	defer rows.Close()
 
 	for rows.Next() {
-		err = rows.Scan(&id, &data, &initialOpts, &createdAt)
+		var id string
+		var data map[string]any
+		var initialOpts map[string]any
+		var createdAt time.Time
+		var guildId string
+
+		err = rows.Scan(&id, &data, &initialOpts, &createdAt, &guildId)
 
 		if err != nil {
 			state.Logger.Error("Failed to scan jobs", zap.Error(err))
@@ -203,7 +208,7 @@ func Resume() {
 		ctx, cancel := context.WithTimeout(state.Context, DefaultValidationTimeout)
 
 		err = job.Validate(jobrunner.JobrunnerState{
-			GuildId: job.GuildID(),
+			GuildId: guildId,
 			Ctx:     ctx,
 		})
 
@@ -217,6 +222,6 @@ func Resume() {
 		// Execute job
 		ctx, cancel = context.WithTimeout(state.Context, DefaultTimeout)
 
-		go jobrunner.Execute(ctx, cancel, id, job, nil)
+		go jobrunner.Execute(ctx, cancel, id, job, nil, guildId)
 	}
 }

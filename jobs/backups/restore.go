@@ -115,9 +115,6 @@ func isRoleLessThanRole(a, b *discordgo.Role) bool {
 
 // A job to restore a backup of a server
 type ServerBackupRestore struct {
-	// The ID of the server
-	ServerID string
-
 	// Constraints, this is auto-set by the job in jobserver and hence not configurable in this mode.
 	Constraints *BackupConstraints
 
@@ -130,7 +127,6 @@ func (t *ServerBackupRestore) Fields() map[string]any {
 	opts.Decrypt = "" // Clear encryption key
 
 	return map[string]any{
-		"ServerID":    t.ServerID,
 		"Constraints": t.Constraints,
 		"Options":     opts,
 	}
@@ -146,10 +142,6 @@ func (t *ServerBackupRestore) Resumable() bool {
 
 // Validate validates the job and sets up state if needed
 func (t *ServerBackupRestore) Validate(state jobstate.State) error {
-	if t.ServerID == "" {
-		return fmt.Errorf("server_id is required")
-	}
-
 	opMode := state.OperationMode()
 	if t.Constraints == nil || opMode == "jobs" {
 		t.Constraints = FreePlanBackupConstraints // TODO: Add other constraint types based on plans once we have them
@@ -185,7 +177,7 @@ func (t *ServerBackupRestore) Validate(state jobstate.State) error {
 	}
 
 	// Check current backup concurrency
-	count, _ := concurrentBackupState.LoadOrStore(t.ServerID, 0)
+	count, _ := concurrentBackupState.LoadOrStore(state.GuildID(), 0)
 
 	if count >= t.Constraints.MaxServerBackups {
 		return fmt.Errorf("you already have more than %d backup-related jobs in progress, please wait for it to finish", t.Constraints.MaxServerBackups)
@@ -201,22 +193,23 @@ func (t *ServerBackupRestore) Exec(
 ) (*types.Output, error) {
 	discord, botUser, _ := state.Discord()
 	ctx := state.Context()
+	guildId := state.GuildID()
 
 	// Check current backup concurrency
-	count, _ := concurrentBackupState.LoadOrStore(t.ServerID, 0)
+	count, _ := concurrentBackupState.LoadOrStore(guildId, 0)
 
 	if count >= t.Constraints.MaxServerBackups {
 		return nil, fmt.Errorf("you already have more than %d backup-related jobs in progress, please wait for it to finish", t.Constraints.MaxServerBackups)
 	}
 
-	concurrentBackupState.Store(t.ServerID, count+1)
+	concurrentBackupState.Store(guildId, count+1)
 
 	// Decrement count when we're done
 	defer func() {
-		countNow, _ := concurrentBackupState.LoadOrStore(t.ServerID, 0)
+		countNow, _ := concurrentBackupState.LoadOrStore(guildId, 0)
 
 		if countNow > 0 {
-			concurrentBackupState.Store(t.ServerID, countNow-1)
+			concurrentBackupState.Store(guildId, countNow-1)
 		}
 	}()
 
@@ -309,14 +302,14 @@ func (t *ServerBackupRestore) Exec(
 
 	// Fetch the bots member object in the guild
 	l.Info("Fetching bots current state in server")
-	m, err := discord.GuildMember(t.ServerID, botUser.ID, discordgo.WithContext(ctx))
+	m, err := discord.GuildMember(guildId, botUser.ID, discordgo.WithContext(ctx))
 
 	if err != nil {
 		return nil, fmt.Errorf("error fetching bots member object: %w", err)
 	}
 
 	l.Info("Fetching guild object")
-	tgtGuild, err := discord.Guild(t.ServerID, discordgo.WithContext(ctx))
+	tgtGuild, err := discord.Guild(guildId, discordgo.WithContext(ctx))
 
 	if err != nil {
 		return nil, fmt.Errorf("error fetching guild: %w", err)
@@ -324,7 +317,7 @@ func (t *ServerBackupRestore) Exec(
 
 	// Fetch roles first before calculating base permissions
 	if len(tgtGuild.Roles) == 0 {
-		roles, err := discord.GuildRoles(t.ServerID, discordgo.WithContext(ctx))
+		roles, err := discord.GuildRoles(guildId, discordgo.WithContext(ctx))
 
 		if err != nil {
 			return nil, fmt.Errorf("error fetching roles: %w", err)
@@ -381,7 +374,7 @@ func (t *ServerBackupRestore) Exec(
 	}
 
 	// Fetch channels of guild
-	channels, err := discord.GuildChannels(t.ServerID, discordgo.WithContext(ctx))
+	channels, err := discord.GuildChannels(guildId, discordgo.WithContext(ctx))
 
 	if err != nil {
 		return nil, fmt.Errorf("error fetching channels: %w", err)
@@ -479,7 +472,7 @@ func (t *ServerBackupRestore) Exec(
 					}
 				}
 
-				_, err = discord.GuildEdit(t.ServerID, gp, discordgo.WithContext(ctx))
+				_, err = discord.GuildEdit(guildId, gp, discordgo.WithContext(ctx))
 
 				if err != nil {
 					return nil, nil, fmt.Errorf("failed to edit guild: %w", err)
@@ -518,7 +511,7 @@ func (t *ServerBackupRestore) Exec(
 
 					l.Info("Deleting role", zap.String("name", r.Name), zap.Int("position", r.Position), zap.String("id", r.ID))
 
-					err := discord.GuildRoleDelete(t.ServerID, r.ID, discordgo.WithRetryOnRatelimit(true), discordgo.WithContext(ctx))
+					err := discord.GuildRoleDelete(guildId, r.ID, discordgo.WithRetryOnRatelimit(true), discordgo.WithContext(ctx))
 
 					if err != nil {
 						return nil, nil, fmt.Errorf("failed to delete role: %w with position of %d", err, r.Position)
@@ -587,7 +580,7 @@ func (t *ServerBackupRestore) Exec(
 
 					l.Info("Creating role", zap.String("name", srcGuild.Roles[i].Name), zap.Int("finalPosition", srcGuild.Roles[i].Position), zap.String("id", srcGuild.Roles[i].ID))
 
-					newRole, err := discord.GuildRoleCreate(t.ServerID, &discordgo.RoleParams{
+					newRole, err := discord.GuildRoleCreate(guildId, &discordgo.RoleParams{
 						Name: srcGuild.Roles[i].Name,
 						Color: func() *int {
 							if srcGuild.Roles[i].Color == 0 {
@@ -742,7 +735,7 @@ func (t *ServerBackupRestore) Exec(
 						}
 					}
 
-					c, err := discord.GuildChannelCreateComplex(t.ServerID, discordgo.GuildChannelCreateData{
+					c, err := discord.GuildChannelCreateComplex(guildId, discordgo.GuildChannelCreateData{
 						Name:                 channel.Name,
 						Type:                 channel.Type,
 						Topic:                channel.Topic,
@@ -907,7 +900,7 @@ func (t *ServerBackupRestore) Exec(
 
 				gp.Features = features
 
-				_, err = discord.GuildEdit(t.ServerID, gp, discordgo.WithRetryOnRatelimit(true), discordgo.WithContext(ctx))
+				_, err = discord.GuildEdit(guildId, gp, discordgo.WithRetryOnRatelimit(true), discordgo.WithContext(ctx))
 
 				if err != nil {
 					return nil, nil, fmt.Errorf("failed to edit guild: %w", err)
@@ -1197,15 +1190,10 @@ func (t *ServerBackupRestore) Name() string {
 	return "guild_restore_backup"
 }
 
-func (t *ServerBackupRestore) GuildID() string {
-	return t.ServerID
-}
-
 func (t *ServerBackupRestore) LocalPresets() *interfaces.PresetInfo {
 	return &interfaces.PresetInfo{
 		Runnable: true,
 		Preset: &ServerBackupRestore{
-			ServerID:    "{{.Args.ServerID}}",
 			Constraints: FreePlanBackupConstraints,
 			Options: BackupRestoreOpts{
 				IgnoreRestoreErrors: false,

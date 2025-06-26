@@ -27,9 +27,6 @@ var allowedMsgPruneChannelTypes = []discordgo.ChannelType{
 }
 
 type MessagePrune struct {
-	// The ID of the server
-	ServerID string
-
 	// Constraints, this is auto-set by the job in jobserver and hence not configurable in this mode.
 	Constraints *ModerationConstraints
 
@@ -39,7 +36,6 @@ type MessagePrune struct {
 
 func (t *MessagePrune) Fields() map[string]any {
 	return map[string]any{
-		"ServerID":    t.ServerID,
 		"Constraints": t.Constraints,
 		"Options":     t.Options,
 	}
@@ -54,10 +50,6 @@ func (t *MessagePrune) Resumable() bool {
 }
 
 func (t *MessagePrune) Validate(state jobstate.State) error {
-	if t.ServerID == "" {
-		return fmt.Errorf("server_id is required")
-	}
-
 	opMode := state.OperationMode()
 	if opMode == "jobs" {
 		t.Constraints = FreePlanModerationConstraints // TODO: Add other constraint types based on plans once we have them
@@ -94,7 +86,7 @@ func (t *MessagePrune) Validate(state jobstate.State) error {
 	}
 
 	// Check current moderation concurrency
-	count, _ := concurrentModerationState.LoadOrStore(t.ServerID, 0)
+	count, _ := concurrentModerationState.LoadOrStore(state.GuildID(), 0)
 
 	if count >= t.Constraints.MaxServerModeration {
 		return fmt.Errorf("you already have more than %d moderation jobs in progress, please wait for it to finish", t.Constraints.MaxServerModeration)
@@ -110,34 +102,35 @@ func (t *MessagePrune) Exec(
 ) (*types.Output, error) {
 	discord, botUser, _ := state.Discord()
 	ctx := state.Context()
+	guildId := state.GuildID()
 
 	// Check current moderation concurrency
-	count, _ := concurrentModerationState.LoadOrStore(t.ServerID, 0)
+	count, _ := concurrentModerationState.LoadOrStore(guildId, 0)
 
 	if count >= t.Constraints.MaxServerModeration {
 		return nil, fmt.Errorf("you already have more than %d moderation jobs in progress, please wait for it to finish", t.Constraints.MaxServerModeration)
 	}
 
-	concurrentModerationState.Store(t.ServerID, count+1)
+	concurrentModerationState.Store(guildId, count+1)
 
 	// Decrement count when we're done
 	defer func() {
-		countNow, _ := concurrentModerationState.LoadOrStore(t.ServerID, 0)
+		countNow, _ := concurrentModerationState.LoadOrStore(guildId, 0)
 
 		if countNow > 0 {
-			concurrentModerationState.Store(t.ServerID, countNow-1)
+			concurrentModerationState.Store(guildId, countNow-1)
 		}
 	}()
 
 	l.Info("Fetching bots current state in server")
-	m, err := discord.GuildMember(t.ServerID, botUser.ID, discordgo.WithContext(ctx))
+	m, err := discord.GuildMember(guildId, botUser.ID, discordgo.WithContext(ctx))
 
 	if err != nil {
 		return nil, fmt.Errorf("error fetching bots member object: %w", err)
 	}
 
 	// Fetch guild
-	g, err := discord.Guild(t.ServerID, discordgo.WithContext(ctx))
+	g, err := discord.Guild(guildId, discordgo.WithContext(ctx))
 
 	if err != nil {
 		return nil, fmt.Errorf("error fetching guild: %w", err)
@@ -145,7 +138,7 @@ func (t *MessagePrune) Exec(
 
 	// Fetch roles first before calculating base permissions
 	if len(g.Roles) == 0 {
-		roles, err := discord.GuildRoles(t.ServerID, discordgo.WithContext(ctx))
+		roles, err := discord.GuildRoles(guildId, discordgo.WithContext(ctx))
 
 		if err != nil {
 			return nil, fmt.Errorf("error fetching roles: %w", err)
@@ -155,7 +148,7 @@ func (t *MessagePrune) Exec(
 	}
 
 	if len(g.Channels) == 0 {
-		channels, err := discord.GuildChannels(t.ServerID, discordgo.WithContext(ctx))
+		channels, err := discord.GuildChannels(guildId, discordgo.WithContext(ctx))
 
 		if err != nil {
 			return nil, fmt.Errorf("error fetching channels: %w", err)
@@ -299,14 +292,10 @@ func (t *MessagePrune) Name() string {
 	return "message_prune"
 }
 
-func (t *MessagePrune) GuildID() string {
-	return t.ServerID
-}
 func (t *MessagePrune) LocalPresets() *interfaces.PresetInfo {
 	return &interfaces.PresetInfo{
 		Runnable: true,
 		Preset: &MessagePrune{
-			ServerID: "{{.Args.ServerID}}",
 			Constraints: &ModerationConstraints{
 				MessagePrune: &MessagePruneConstraints{
 					TotalMaxMessages: 1000,

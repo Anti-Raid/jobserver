@@ -10,9 +10,8 @@ import (
 )
 
 // Sets up a job
-func Create(ctx context.Context, pool *pgxpool.Pool, jobImpl interfaces.JobImpl) (*string, error) {
+func Create(ctx context.Context, pool *pgxpool.Pool, jobImpl interfaces.JobImpl, guildId string) (*string, error) {
 	name := jobImpl.Name()
-	guildId := jobImpl.GuildID()
 
 	_, ok := jobs.JobImplRegistry[jobImpl.Name()]
 
@@ -47,10 +46,11 @@ func Create(ctx context.Context, pool *pgxpool.Pool, jobImpl interfaces.JobImpl)
 	// Add to ongoing_jobs
 	_, err = tx.Exec(
 		ctx,
-		"INSERT INTO ongoing_jobs (id, data, initial_opts) VALUES ($1, $2, $3)",
+		"INSERT INTO ongoing_jobs (id, data, initial_opts, guild_id) VALUES ($1, $2, $3, $4)",
 		id,
 		map[string]any{},
 		jobImpl,
+		guildId,
 	)
 
 	if err != nil {

@@ -80,6 +80,10 @@ func (t JobrunnerState) Context() context.Context {
 	return t.Ctx
 }
 
+func (t JobrunnerState) GuildID() string {
+	return t.GuildId
+}
+
 type Progress struct {
 	ID string
 
@@ -133,6 +137,7 @@ func Execute(
 	id string,
 	jobImpl interfaces.JobImpl,
 	prog *Progress,
+	guildId string,
 ) {
 	if state.CurrentOperationMode != "jobs" {
 		panic("cannot execute jobs outside of job server")
@@ -204,8 +209,9 @@ func Execute(
 
 	ts := JobrunnerState{
 		Ctx:     ctx,
-		GuildId: jobImpl.GuildID(),
+		GuildId: guildId,
 	}
+
 	if prog == nil {
 		prog = &Progress{
 			ID:    id,
@@ -238,7 +244,7 @@ func Execute(
 
 			err = state.ObjectStorage.Save(
 				state.Context,
-				objectstorage.GuildBucket(jobImpl.GuildID()),
+				objectstorage.GuildBucket(guildId),
 				jobs.GetPathFromOutput(id),
 				outp.Filename,
 				outp.Buffer,

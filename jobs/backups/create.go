@@ -341,9 +341,6 @@ func writeMsgpack(f *iblfile.AutoEncryptedFile_FullFile, section string, data an
 
 // A job to create backup a server
 type ServerBackupCreate struct {
-	// The ID of the server
-	ServerID string
-
 	// Constraints, this is auto-set by the job on jobserver and hence not configurable in this mode.
 	Constraints *BackupConstraints
 
@@ -356,7 +353,6 @@ func (t *ServerBackupCreate) Fields() map[string]any {
 	opts.Encrypt = "" // Clear encryption key
 
 	return map[string]any{
-		"ServerID":    t.ServerID,
 		"Constraints": t.Constraints,
 		"Options":     opts,
 	}
@@ -371,10 +367,6 @@ func (t *ServerBackupCreate) Resumable() bool {
 }
 
 func (t *ServerBackupCreate) Validate(state jobstate.State) error {
-	if t.ServerID == "" {
-		return fmt.Errorf("server_id is required")
-	}
-
 	opMode := state.OperationMode()
 	if opMode == "jobs" {
 		t.Constraints = FreePlanBackupConstraints // TODO: Add other constraint types based on plans once we have them
@@ -415,7 +407,7 @@ func (t *ServerBackupCreate) Validate(state jobstate.State) error {
 	}
 
 	// Check current backup concurrency
-	count, _ := concurrentBackupState.LoadOrStore(t.ServerID, 0)
+	count, _ := concurrentBackupState.LoadOrStore(state.GuildID(), 0)
 
 	if count >= t.Constraints.MaxServerBackups {
 		return fmt.Errorf("you already have more than %d backup-related jobs in progress, please wait for it to finish", t.Constraints.MaxServerBackups)
@@ -431,22 +423,23 @@ func (t *ServerBackupCreate) Exec(
 ) (*types.Output, error) {
 	discord, botUser, _ := state.Discord()
 	ctx := state.Context()
+	guildId := state.GuildID()
 
 	// Check current backup concurrency
-	count, _ := concurrentBackupState.LoadOrStore(t.ServerID, 0)
+	count, _ := concurrentBackupState.LoadOrStore(guildId, 0)
 
 	if count >= t.Constraints.MaxServerBackups {
 		return nil, fmt.Errorf("you already have more than %d backup-related jobs in progress, please wait for it to finish", t.Constraints.MaxServerBackups)
 	}
 
-	concurrentBackupState.Store(t.ServerID, count+1)
+	concurrentBackupState.Store(guildId, count+1)
 
 	// Decrement count when we're done
 	defer func() {
-		countNow, _ := concurrentBackupState.LoadOrStore(t.ServerID, 0)
+		countNow, _ := concurrentBackupState.LoadOrStore(guildId, 0)
 
 		if countNow > 0 {
-			concurrentBackupState.Store(t.ServerID, countNow-1)
+			concurrentBackupState.Store(guildId, countNow-1)
 		}
 	}()
 
@@ -478,7 +471,7 @@ func (t *ServerBackupCreate) Exec(
 
 	// Fetch the bots member object in the guild
 	l.Info("Fetching bots current state in server")
-	m, err := discord.GuildMember(t.ServerID, botUser.ID, discordgo.WithContext(ctx))
+	m, err := discord.GuildMember(guildId, botUser.ID, discordgo.WithContext(ctx))
 
 	if err != nil {
 		return nil, fmt.Errorf("error fetching bots member object: %w", err)
@@ -493,14 +486,14 @@ func (t *ServerBackupCreate) Exec(
 	l.Info("Backing up server settings")
 
 	// Fetch guild
-	g, err := discord.Guild(t.ServerID, discordgo.WithContext(ctx))
+	g, err := discord.Guild(guildId, discordgo.WithContext(ctx))
 
 	if err != nil {
 		return nil, fmt.Errorf("error fetching guild: %w", err)
 	}
 
 	if len(g.Channels) == 0 {
-		channels, err := discord.GuildChannels(t.ServerID, discordgo.WithContext(ctx))
+		channels, err := discord.GuildChannels(guildId, discordgo.WithContext(ctx))
 
 		if err != nil {
 			return nil, fmt.Errorf("error fetching channels: %w", err)
@@ -513,7 +506,7 @@ func (t *ServerBackupCreate) Exec(
 		l.Info("Backing up guild roles")
 
 		// Fetch roles of guild
-		roles, err := discord.GuildRoles(t.ServerID, discordgo.WithContext(ctx))
+		roles, err := discord.GuildRoles(guildId, discordgo.WithContext(ctx))
 
 		if err != nil {
 			return nil, fmt.Errorf("error fetching roles: %w", err)
@@ -536,7 +529,7 @@ func (t *ServerBackupCreate) Exec(
 		l.Info("Backing up guild stickers")
 
 		// Fetch stickers of guild
-		stickers, err := discord.Request("GET", discordgo.EndpointGuildStickers(t.ServerID), nil, discordgo.WithContext(ctx))
+		stickers, err := discord.Request("GET", discordgo.EndpointGuildStickers(guildId), nil, discordgo.WithContext(ctx))
 
 		if err != nil {
 			return nil, fmt.Errorf("error fetching stickers: %w", err)
@@ -728,15 +721,10 @@ func (t *ServerBackupCreate) Name() string {
 	return "guild_create_backup"
 }
 
-func (t *ServerBackupCreate) GuildID() string {
-	return t.ServerID
-}
-
 func (t *ServerBackupCreate) LocalPresets() *interfaces.PresetInfo {
 	return &interfaces.PresetInfo{
 		Runnable: true,
 		Preset: &ServerBackupCreate{
-			ServerID: "{{.Args.ServerID}}",
 			Constraints: &BackupConstraints{
 				Create: &BackupCreateConstraints{
 					TotalMaxMessages:          1000,

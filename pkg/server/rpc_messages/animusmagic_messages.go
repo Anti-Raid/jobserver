@@ -16,6 +16,9 @@ type Spawn struct {
 
 	// The User ID who initiated the action
 	UserID string `json:"user_id"`
+
+	// The Guild ID which initiated the action
+	GuildID string `json:"guild_id"`
 }
 
 type SpawnResponse struct {

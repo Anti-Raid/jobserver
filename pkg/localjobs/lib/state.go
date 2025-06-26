@@ -42,6 +42,10 @@ func (ts State) Context() context.Context {
 	return ts.ContextUse
 }
 
+func (ts State) GuildID() string {
+	return ts.GuildId
+}
+
 type Progress struct{}
 
 func (ts Progress) GetProgress() (*jobstate.Progress, error) {

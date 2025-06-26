@@ -29,6 +29,9 @@ type State interface {
 
 	// Context returns the context to use for the job
 	Context() context.Context
+
+	// GuildID returns the guild ID for the job, if applicable
+	GuildID() string
 }
 
 type Progress struct {

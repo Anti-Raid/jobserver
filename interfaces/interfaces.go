@@ -14,9 +14,6 @@ type JobImpl interface {
 	// Name returns the name of the job
 	Name() string
 
-	// Owner returns who the job is for
-	GuildID() string
-
 	// As jobs often deal with sensitive data such as secrets, the Fields method returns
 	// a map of fields that can be stored in the database
 	Fields() map[string]any
