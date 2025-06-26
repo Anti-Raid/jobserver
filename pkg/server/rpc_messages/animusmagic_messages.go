@@ -14,9 +14,6 @@ type Spawn struct {
 	// If create is false, then task id must be set
 	ID string `json:"id"`
 
-	// The User ID who initiated the action
-	UserID string `json:"user_id"`
-
 	// The Guild ID which initiated the action
 	GuildID string `json:"guild_id"`
 }
