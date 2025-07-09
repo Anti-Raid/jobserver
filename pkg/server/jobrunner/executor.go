@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"github.com/Anti-Raid/corelib_go/objectstorage"
 	"github.com/Anti-Raid/jobserver/interfaces"
 	jobs "github.com/Anti-Raid/jobserver/jobs"
+	"github.com/Anti-Raid/jobserver/objectstorage"
 	"github.com/Anti-Raid/jobserver/pkg/server/state"
 	jobstate "github.com/Anti-Raid/jobserver/state"
 	"github.com/anti-raid/eureka/crypto"

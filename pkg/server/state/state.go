@@ -7,15 +7,13 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"github.com/Anti-Raid/corelib_go/config"
-	"github.com/Anti-Raid/corelib_go/objectstorage"
-	"github.com/Anti-Raid/corelib_go/utils"
+	"github.com/Anti-Raid/jobserver/config"
+	"github.com/Anti-Raid/jobserver/objectstorage"
 	"github.com/anti-raid/eureka/genconfig"
 	"github.com/anti-raid/eureka/proxy"
 	"github.com/anti-raid/eureka/snippets"
 	"github.com/bwmarrin/discordgo"
 	"github.com/go-playground/validator/v10"
-	"github.com/go-playground/validator/v10/non-standard/validators"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -100,14 +98,6 @@ func SetupBase() {
 
 func Setup() {
 	SetupDebug()
-
-	utils.Must(
-		Validator.RegisterValidation("notblank", validators.NotBlank),
-		Validator.RegisterValidation("nospaces", snippets.ValidatorNoSpaces),
-		Validator.RegisterValidation("https", snippets.ValidatorIsHttps),
-		Validator.RegisterValidation("httporhttps", snippets.ValidatorIsHttpOrHttps),
-	)
-
 	SetupBase()
 
 	var err error

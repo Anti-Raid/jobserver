@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Anti-Raid/corelib_go/objectstorage"
+	"github.com/Anti-Raid/jobserver/objectstorage"
 )
 
 var rtDefaultExp = 5 * time.Minute

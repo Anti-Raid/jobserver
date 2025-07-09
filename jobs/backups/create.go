@@ -13,11 +13,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Anti-Raid/corelib_go/utils"
 	"github.com/Anti-Raid/jobserver/common"
 	"github.com/Anti-Raid/jobserver/interfaces"
 	jobstate "github.com/Anti-Raid/jobserver/state"
 	"github.com/Anti-Raid/jobserver/types"
+	"github.com/Anti-Raid/jobserver/utils"
 
 	_ "golang.org/x/image/webp"
 

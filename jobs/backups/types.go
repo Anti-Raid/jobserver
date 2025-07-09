@@ -3,7 +3,7 @@ package backups
 import (
 	"bytes"
 
-	"github.com/Anti-Raid/corelib_go/utils/timex"
+	"github.com/Anti-Raid/jobserver/utils/timex"
 	iblfile "github.com/anti-raid/iblfile/go"
 	"github.com/bwmarrin/discordgo"
 )

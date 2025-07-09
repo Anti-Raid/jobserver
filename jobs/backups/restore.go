@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Anti-Raid/corelib_go/utils"
 	"github.com/Anti-Raid/jobserver/common"
 	"github.com/Anti-Raid/jobserver/interfaces"
 	jobstate "github.com/Anti-Raid/jobserver/state"
 	"github.com/Anti-Raid/jobserver/step"
 	"github.com/Anti-Raid/jobserver/types"
+	"github.com/Anti-Raid/jobserver/utils"
 	"github.com/go-viper/mapstructure/v2"
 
 	iblfile "github.com/anti-raid/iblfile/go"

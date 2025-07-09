@@ -1,6 +1,6 @@
 package backups
 
-import "github.com/Anti-Raid/corelib_go/utils/syncmap"
+import "github.com/Anti-Raid/jobserver/utils/syncmap"
 
 // concurrentBackupState is a map of guild IDs to the number of backup-related jobs
 // they have running concurrently.

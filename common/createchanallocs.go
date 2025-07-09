@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/Anti-Raid/corelib_go/utils"
+	"github.com/Anti-Raid/jobserver/utils"
 	"github.com/bwmarrin/discordgo"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 )

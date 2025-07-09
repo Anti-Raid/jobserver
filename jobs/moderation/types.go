@@ -1,6 +1,6 @@
 package moderation
 
-import "github.com/Anti-Raid/corelib_go/utils/timex"
+import "github.com/Anti-Raid/jobserver/utils/timex"
 
 // Options that can be set when pruning a message
 type MessagePruneOpts struct {
