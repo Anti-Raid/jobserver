@@ -1,3 +1,0 @@
-[submodule "core/go"]
-	path = core/go
-	url = https://github.com/Anti-Raid/corelib_go
