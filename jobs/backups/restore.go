@@ -234,7 +234,7 @@ func (t *ServerBackupRestore) Exec(
 
 	l.Info("Backup source responded", zap.Int("status_code", resp.StatusCode), zap.Int64("contentLength", resp.ContentLength))
 
-	// Limit body size to 100mb
+	// Limit body size to MaxBodySize
 	if resp.ContentLength > t.Constraints.Restore.MaxBodySize {
 		return nil, fmt.Errorf("backup too large, expected less than %d bytes, got %d bytes", t.Constraints.Restore.MaxBodySize, resp.ContentLength)
 	}
@@ -513,8 +513,10 @@ func (t *ServerBackupRestore) Exec(
 
 					err := discord.GuildRoleDelete(guildId, r.ID, discordgo.WithRetryOnRatelimit(true), discordgo.WithContext(ctx))
 
-					if err != nil {
+					if err != nil && !t.Options.IgnoreRestoreErrors {
 						return nil, nil, fmt.Errorf("failed to delete role: %w with position of %d", err, r.Position)
+					} else if t.Options.IgnoreRestoreErrors && err != nil {
+						l.Warn("Failed to delete role but ignoring error", zap.String("name", r.Name), zap.Int("position", r.Position), zap.String("id", r.ID), zap.Error(err))
 					}
 
 					time.Sleep(time.Duration(t.Constraints.Restore.RoleDeleteSleep))
@@ -932,6 +934,13 @@ func (t *ServerBackupRestore) Exec(
 						return nil, nil, nil // No channels restored, skip step
 					}
 
+					// Fetch tgtGuild again to get the latest channels
+					tgtGuild, err = discord.Guild(guildId, discordgo.WithContext(ctx), discordgo.WithRetryOnRatelimit(true))
+
+					if err != nil {
+						return nil, nil, fmt.Errorf("failed to fetch guild: %w", err)
+					}
+
 					// Get first channel
 					var channelId string
 
@@ -1098,36 +1107,7 @@ func (t *ServerBackupRestore) Exec(
 								rm.TTS = true
 							}
 
-							// Add in the other attachments now. Note that only small attachments are supported for now
-							attachmentByteLength := 0
-							for _, attachment := range bm[i].AttachmentMetadata {
-								if attachmentByteLength < t.Constraints.Restore.TotalMaxAttachmentFileSize {
-									data, err := f.Get("attachments/" + attachment.ID)
-
-									// This is sadly common because discord
-									if err != nil {
-										l.Warn("Failed to find attachment, ignoring", zap.Error(err), zap.String("attachmentId", attachment.ID))
-										continue
-									}
-
-									if data.Len() == 0 {
-										continue
-									}
-
-									attachmentByteLength += data.Len()
-
-									// Double check and add
-									if attachmentByteLength < t.Constraints.Restore.TotalMaxAttachmentFileSize {
-										rm.Files = append(rm.Files, &discordgo.File{
-											Name:        attachment.Name,
-											ContentType: attachment.ContentType,
-											Reader:      data,
-										})
-									}
-								}
-							}
-
-							// If no content, attachment, embeds or components, continue
+							// If no content, embeds or components, continue
 							if rm.Content == "" && len(rm.Files) == 0 && len(rm.Embeds) == 0 && len(rm.Components) == 0 {
 								continue
 							}

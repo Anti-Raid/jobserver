@@ -2,7 +2,6 @@ package backups
 
 import (
 	"bytes"
-	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -96,10 +95,8 @@ func backupGuildAsset(state jobstate.State, constraints *BackupConstraints, l *z
 
 // Backs up messages of a channel
 //
-// Note that attachments are only backed up if withAttachments is true and f.Size() < fileSizeWarningThreshold
-//
 // Note that this function does not write the messages to the file, it only returns them
-func backupChannelMessages(state jobstate.State, constraints *BackupConstraints, logger *zap.Logger, f *iblfile.AutoEncryptedFile_FullFile, channelID string, allocation int, withAttachments bool) ([]*BackupMessage, error) {
+func backupChannelMessages(state jobstate.State, constraints *BackupConstraints, logger *zap.Logger, f *iblfile.AutoEncryptedFile_FullFile, channelID string, allocation int) ([]*BackupMessage, error) {
 	discord, _, _ := state.Discord()
 	ctx := state.Context()
 
@@ -125,18 +122,6 @@ func backupChannelMessages(state jobstate.State, constraints *BackupConstraints,
 				Message: msg,
 			}
 
-			if withAttachments && f.Size() < constraints.Create.FileSizeWarningThreshold {
-				am, bufs, err := createAttachmentBlob(state, constraints, logger, msg)
-
-				if err != nil {
-					finalMsgs = append(finalMsgs, &im)
-					return finalMsgs, fmt.Errorf("error creating attachment blob: %w", err)
-				}
-
-				im.AttachmentMetadata = am
-				im.attachments = bufs
-			}
-
 			finalMsgs = append(finalMsgs, &im)
 		}
 
@@ -147,180 +132,6 @@ func backupChannelMessages(state jobstate.State, constraints *BackupConstraints,
 	}
 
 	return finalMsgs, nil
-}
-
-func createAttachmentBlob(state jobstate.State, constraints *BackupConstraints, logger *zap.Logger, msg *discordgo.Message) ([]AttachmentMetadata, map[string]*bytes.Buffer, error) {
-	ctx := state.Context()
-
-	var attachments []AttachmentMetadata
-	var bufs = map[string]*bytes.Buffer{}
-	for _, attachment := range msg.Attachments {
-		select {
-		case <-ctx.Done():
-			return nil, nil, ctx.Err()
-		default:
-		}
-
-		if attachment.Size > constraints.Create.MaxAttachmentFileSize {
-			attachments = append(attachments, AttachmentMetadata{
-				ID:          attachment.ID,
-				Name:        attachment.Filename,
-				URL:         attachment.URL,
-				ProxyURL:    attachment.ProxyURL,
-				Size:        attachment.Size,
-				ContentType: attachment.ContentType,
-				Errors:      []string{"Attachment is too large to be saved."},
-			})
-			continue
-		}
-
-		// Download the attachment
-		var url string
-
-		if attachment.ProxyURL != "" {
-			url = attachment.ProxyURL
-		} else {
-			url = attachment.URL
-		}
-
-		client := http.Client{
-			Timeout:   10 * time.Second,
-			Transport: state.Transport(),
-		}
-
-		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-
-		if err != nil {
-			attachments = append(attachments, AttachmentMetadata{
-				ID:          attachment.ID,
-				Name:        attachment.Filename,
-				URL:         attachment.URL,
-				ProxyURL:    attachment.ProxyURL,
-				Size:        attachment.Size,
-				ContentType: attachment.ContentType,
-				Errors: []string{
-					"Error creating attachment request.",
-					"Got error: " + err.Error(),
-				},
-			})
-			continue
-		}
-
-		resp, err := client.Do(req)
-
-		if err != nil {
-			attachments = append(attachments, AttachmentMetadata{
-				ID:          attachment.ID,
-				Name:        attachment.Filename,
-				URL:         attachment.URL,
-				ProxyURL:    attachment.ProxyURL,
-				Size:        attachment.Size,
-				ContentType: attachment.ContentType,
-				Errors: []string{
-					"Error downloading attachment.",
-					"Got status code " + fmt.Sprintf("%d", resp.StatusCode),
-				},
-			})
-			continue
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			logger.Warn("Attachment was not found", zap.String("url", url), zap.Int("status", resp.StatusCode))
-			attachments = append(attachments, AttachmentMetadata{
-				ID:          attachment.ID,
-				Name:        attachment.Filename,
-				URL:         attachment.URL,
-				ProxyURL:    attachment.ProxyURL,
-				Size:        attachment.Size,
-				ContentType: attachment.ContentType,
-				Errors: []string{
-					"Attachment was not found.",
-					"Got status code " + fmt.Sprintf("%d", resp.StatusCode),
-				},
-			})
-			continue
-		}
-
-		bt, err := io.ReadAll(resp.Body)
-
-		if err != nil {
-			logger.Error("Error reading attachment", zap.Error(err), zap.String("url", url))
-			return attachments, nil, fmt.Errorf("error reading attachment: %w", err)
-		}
-
-		bufs[attachment.ID] = bytes.NewBuffer(bt)
-
-		am := AttachmentMetadata{
-			ID:            attachment.ID,
-			Name:          attachment.Filename,
-			URL:           attachment.URL,
-			ProxyURL:      attachment.ProxyURL,
-			Size:          attachment.Size,
-			ContentType:   attachment.ContentType,
-			StorageFormat: AttachmentStorageFormatUncompressed,
-			Errors:        []string{},
-		}
-
-		switch attachment.ContentType {
-		case "video/mp4", "video/webm":
-			// We don't support compressing these yet, so just use uncompressed
-			attachments = append(attachments, am)
-		case "image/jpeg", "image/png", "image/gif", "image/webp":
-			var img image.Image
-
-			img, _, err = image.Decode(bytes.NewReader(bt))
-
-			// We don't support compressing these yet, so just use uncompressed
-			if err != nil {
-				logger.Error("Error decoding attachment", zap.Error(err), zap.String("url", url))
-				attachments = append(attachments, am)
-				continue
-			}
-
-			var buf bytes.Buffer
-			err := jpeg.Encode(&buf, img, &jpeg.Options{
-				Quality: constraints.Create.JpegReencodeQuality,
-			})
-
-			if err != nil {
-				logger.Error("Error encoding attachment", zap.Error(err), zap.String("url", url))
-				attachments = append(attachments, am)
-				continue
-			}
-
-			am.StorageFormat = AttachmentStorageFormatJpegEncoded
-
-			bufs[attachment.ID] = &buf
-			attachments = append(attachments, am)
-		case "text/plain", "text/html", "application/octet-stream":
-			// Gzip compress
-			am.StorageFormat = AttachmentStorageFormatGzip
-
-			var buf bytes.Buffer
-			gz := gzip.NewWriter(&buf)
-			_, err = gz.Write(bt)
-
-			if err != nil {
-				logger.Error("Error gzipping attachment", zap.Error(err), zap.String("url", url))
-				return attachments, nil, fmt.Errorf("error gzipping attachment: %w", err)
-			}
-
-			err = gz.Close()
-
-			if err != nil {
-				logger.Error("Error gzipping attachment", zap.Error(err), zap.String("url", url))
-				return attachments, nil, fmt.Errorf("error gzipping attachment: %w", err)
-			}
-
-			bufs[attachment.ID] = &buf
-
-			attachments = append(attachments, am)
-		default:
-			attachments = append(attachments, am)
-		}
-	}
-
-	return attachments, bufs, nil
 }
 
 func writeMsgpack(f *iblfile.AutoEncryptedFile_FullFile, section string, data any) error {
@@ -396,10 +207,6 @@ func (t *ServerBackupCreate) Validate(state jobstate.State) error {
 
 	if t.Options.PerChannel > t.Options.MaxMessages {
 		return fmt.Errorf("per_channel cannot be greater than max_messages")
-	}
-
-	if t.Options.BackupAttachments && !t.Options.BackupMessages {
-		return fmt.Errorf("cannot backup attachments without messages")
 	}
 
 	if len(t.Options.SpecialAllocations) == 0 {
@@ -625,7 +432,7 @@ func (t *ServerBackupCreate) Exec(
 			func(channelID string, allocation int) (collected int, err error) {
 				l.Info("Backing up channel messages", zap.String("channelId", channelID))
 
-				msgs, err := backupChannelMessages(state, t.Constraints, l, f, channelID, allocation, t.Options.BackupAttachments)
+				msgs, err := backupChannelMessages(state, t.Constraints, l, f, channelID, allocation)
 
 				// Write messages of this section regardless of error
 				if len(msgs) > 0 {
@@ -633,18 +440,6 @@ func (t *ServerBackupCreate) Exec(
 
 					if errMsg != nil {
 						return len(msgs), fmt.Errorf("error writing messages: %w", err)
-					}
-
-					for _, msg := range msgs {
-						if len(msg.attachments) > 0 {
-							for id, buf := range msg.attachments {
-								err = f.WriteSection(buf, "attachments/"+id)
-
-								if err != nil {
-									return len(msgs), fmt.Errorf("error writing attachment: %w", err)
-								}
-							}
-						}
 					}
 				}
 
@@ -728,7 +523,6 @@ func (t *ServerBackupCreate) LocalPresets() *interfaces.PresetInfo {
 			Constraints: &BackupConstraints{
 				Create: &BackupCreateConstraints{
 					TotalMaxMessages:          1000,
-					FileSizeWarningThreshold:  100000000,
 					MinPerChannel:             50,
 					DefaultPerChannel:         100,
 					JpegReencodeQuality:       85,
@@ -740,7 +534,6 @@ func (t *ServerBackupCreate) LocalPresets() *interfaces.PresetInfo {
 			Options: BackupCreateOpts{
 				MaxMessages:               500,
 				BackupMessages:            true,
-				BackupAttachments:         true,
 				BackupGuildAssets:         []string{"icon", "banner", "splash"},
 				PerChannel:                100,
 				RolloverLeftovers:         true,
@@ -754,7 +547,6 @@ func (t *ServerBackupCreate) LocalPresets() *interfaces.PresetInfo {
 			"Constraints.Create.TotalMaxMessages":         "Since this is a local job, we can afford to be more generous",
 			"Constraints.Create.FileSizeWarningThreshold": "100MB is used as default as we can be more generous with storage locally",
 			"Options.BackupMessages":                      "This is a local job so backing up messages is likely faster and desired",
-			"Options.BackupAttachments":                   "This is a local job so backing up attachments is likely faster and desired",
 			"Options.BackupGuildAssets":                   "This is a local job so backing up guild assets is likely faster and desired",
 			"Options.IgnoreMessageBackupErrors":           "We likely don't want errors ignored in local jobs",
 		},
