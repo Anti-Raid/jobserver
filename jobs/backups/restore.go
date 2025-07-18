@@ -961,7 +961,7 @@ func (t *ServerBackupRestore) Exec(
 
 					if err != nil {
 						if t.Options.IgnoreRestoreErrors {
-							l.Warn("Failed to create webhook. Skipping message send", zap.Error(err))
+							l.Warn("Failed to create webhook. Skipping message send", zap.Error(err), zap.String("channel_id", channelId))
 							return nil, nil, nil
 						}
 
