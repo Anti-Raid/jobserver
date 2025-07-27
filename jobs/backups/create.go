@@ -189,6 +189,10 @@ func (t *ServerBackupCreate) Validate(state jobstate.State) error {
 		return fmt.Errorf("invalid operation mode")
 	}
 
+	if t.Options.Encrypt != "" {
+		return fmt.Errorf("encryption is currently disabled")
+	}
+
 	if t.Options.MaxMessages == 0 {
 		t.Options.MaxMessages = t.Constraints.Create.TotalMaxMessages
 	}
